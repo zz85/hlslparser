@@ -1,104 +1,66 @@
-#include "Engine/Allocator.h"
-#include "Engine/Log.h"
-#include "Engine/String.h"
 
-#include "HLSLParser.h"
+#include "Engine.h"
 #include "GLSLGenerator.h"
+#include "HLSLParser.h"
+#include "HLSLTree.h"
 
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include <stdio.h>
 
-std::string ReadFile(const char* fileName)
-{
-    std::ifstream ifs(fileName);
-    std::stringstream buffer;
-    buffer << ifs.rdbuf();
-    return buffer.str();
-}
 
-void PrintUsage()
-{
-    std::cerr << "usage: hlslparser [-h] [-fs | -vs] FILENAME ENTRYNAME\n"
-              << "\n"
-              << "Translate HLSL shader to GLSL shader.\n"
-              << "\n"
-              << "positional arguments:\n"
-              << " FILENAME    input file name\n"
-              << " ENTRYNAME   entry point of the shader\n"
-              << "\n"
-              << "optional arguments:\n"
-              << " -h, --help  show this help message and exit\n"
-              << " -fs         generate fragment shader (default)\n"
-              << " -vs         generate vertex shader\n";
-}
+M4::Allocator allocator;
 
-int main(int argc, char* argv[])
-{
-    using namespace M4;
+static const char * readFile(const char * filename, size_t * lengthptr) {
+    FILE * fp = fopen(filename, "rb");
+    
+    fseek(fp, 0, SEEK_END);
+    size_t length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
-    // Parse arguments
-    const char* fileName = NULL;
-    const char* entryName = NULL;
-    GLSLGenerator::Target target = GLSLGenerator::Target_FragmentShader;
+    char * buffer = allocator.New<char>(length);
 
-    for (int argn = 1; argn < argc; ++argn)
-    {
-        const char* const arg = argv[argn];
+    fread(buffer, 1, length, fp);
+    fclose(fp);
 
-        if (String_Equal(arg, "-h") || String_Equal(arg, "--help"))
-        {
-            PrintUsage();
-            return 0;
-        }
-        else if (String_Equal(arg, "-fs"))
-        {
-           target = GLSLGenerator::Target_FragmentShader;
-        }
-        else if (String_Equal(arg, "-vs"))
-        {
-            target = GLSLGenerator::Target_VertexShader;
-        }
-        else if (fileName == NULL)
-        {
-            fileName = arg;
-        }
-        else if (entryName == NULL)
-        {
-            entryName = arg;
-        }
-        else
-        {
-            Log_Error("Too many arguments");
-            PrintUsage();
-            return 1;
-        }
+    if (lengthptr != NULL) {
+        *lengthptr = length;
     }
 
-    if (fileName == NULL || entryName == NULL)
-    {
-        Log_Error("Missing arguments");
-        PrintUsage();
-        return 1;
-    }
-
-    // Read input file
-    const std::string source = ReadFile(fileName);
-
-    // Parse input file
-    Allocator allocator;
-    HLSLParser parser(&allocator, fileName, source.data(), source.size());
-    HLSLTree tree(&allocator);
-    if (!parser.Parse(&tree))
-    {
-        Log_Error("Parsing failed, aborting");
-        return 1;
-    }
-
-    // Generate output
-    GLSLGenerator generator(&allocator);
-    generator.Generate(&tree, target, entryName);
-    std::cout << generator.GetResult();
-
-    return 0;
+    return buffer;
 }
+
+
+int main(int argc, char *argv[])
+{
+    const char * filename = "test.fx";
+
+    // @@ Add input options.
+    if (argc > 1) {
+        filename = argv[1];
+    }
+
+    // Read input file.
+    size_t length;
+    const char * buffer = readFile(filename, &length);
+
+
+    M4::HLSLTree tree(&allocator);
+    M4::HLSLParser parser(&allocator, filename, buffer, length);
+
+    if (!parser.Parse(&tree)) {
+        M4::Log_Error("Parse error.\n");
+        return EXIT_FAILURE;
+    }
+
+    M4::GLSLGenerator generator(&allocator);
+
+    if (!generator.Generate(&tree, M4::GLSLGenerator::Target_VertexShader, "vertex_shader")) {
+        M4::Log_Error("Generation error.\n");
+        return EXIT_FAILURE;
+    }
+
+    puts(generator.GetResult());
+
+    return EXIT_SUCCESS;
+}
+
+

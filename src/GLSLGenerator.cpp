@@ -7,13 +7,13 @@
 //
 //=============================================================================
 
-#include "Engine/String.h"
-#include "Engine/Log.h"
-#include "Engine/Assert.h"
-
 #include "GLSLGenerator.h"
 #include "HLSLParser.h"
 #include "HLSLTree.h"
+
+//#include "Engine/String.h"
+//#include "Engine/Log.h"
+#include "Engine.h"
 
 #include <stdarg.h>
 
@@ -67,7 +67,9 @@ static const char* GetTypeName(const HLSLType& type)
     case HLSLBaseType_Uint3:        return "uvec3";
     case HLSLBaseType_Uint4:        return "uvec4";
     case HLSLBaseType_Texture:      return "texture";
+    case HLSLBaseType_Sampler:      return "sampler";
     case HLSLBaseType_Sampler2D:    return "sampler2D";
+    case HLSLBaseType_Sampler3D:    return "sampler3D";
     case HLSLBaseType_SamplerCube:  return "samplerCube";
     case HLSLBaseType_UserDefined:  return type.typeName;
     }
@@ -121,6 +123,8 @@ GLSLGenerator::GLSLGenerator(Allocator* allocator) :
     m_matrixRowFunction[0]      = 0;
     m_clipFunction[0]           = 0;
     m_tex2DlodFunction[0]       = 0;
+    m_tex2DbiasFunction[0]      = 0;
+    m_tex3DlodFunction[0]       = 0;
     m_texCUBEbiasFunction[0]    = 0;
     m_scalarSwizzle2Function[0] = 0;
     m_scalarSwizzle3Function[0] = 0;
@@ -139,12 +143,16 @@ bool GLSLGenerator::Generate(const HLSLTree* tree, Target target, const char* en
     
     bool usesClip = m_tree->GetContainsString("clip");
     bool usesTex2Dlod = m_tree->GetContainsString("tex2Dlod");
+    bool usesTex2Dbias = m_tree->GetContainsString("tex2Dbias");
+    bool usesTex3Dlod = m_tree->GetContainsString("tex3Dlod");
     bool usestexCUBEbias = m_tree->GetContainsString("texCUBEbias");
     bool usesSinCos = m_tree->GetContainsString("sincos");
 
     ChooseUniqueName("matrix_row", m_matrixRowFunction, sizeof(m_matrixRowFunction));
     ChooseUniqueName("clip", m_clipFunction, sizeof(m_clipFunction));
     ChooseUniqueName("tex2Dlod", m_tex2DlodFunction, sizeof(m_tex2DlodFunction));
+    ChooseUniqueName("tex2Dbias", m_tex2DbiasFunction, sizeof(m_tex2DbiasFunction));
+    ChooseUniqueName("tex3Dlod", m_tex3DlodFunction, sizeof(m_tex3DlodFunction));
     ChooseUniqueName("texCUBEbias", m_texCUBEbiasFunction, sizeof(m_texCUBEbiasFunction));
 
     for (int i = 0; i < s_numReservedWords; ++i)
@@ -208,6 +216,27 @@ bool GLSLGenerator::Generate(const HLSLTree* tree, Target target, const char* en
     if (usesTex2Dlod)
     {
         m_writer.WriteLine(0, "vec4 %s(sampler2D sampler, vec4 texCoord) { return textureLod(sampler, texCoord.xy, texCoord.w);  }", m_tex2DlodFunction );
+    }
+
+    // Output the special function used to emulate tex2Dbias.
+    if (usesTex2Dbias)
+    {
+        if (target == Target_FragmentShader)
+        {
+            m_writer.WriteLine(0, "vec4 %s(sampler2D sampler, vec4 texCoord) { return texture(sampler, texCoord.xy, texCoord.w);  }", m_tex2DbiasFunction );
+        }
+        else
+        {
+            // Bias value is not supported in vertex shader.
+            m_writer.WriteLine(0, "vec4 %s(sampler2D sampler, vec4 texCoord) { return texture(sampler, texCoord.xy);  }", m_tex2DbiasFunction );
+        }
+
+    }
+
+    // Output the special function used to emulate tex3Dlod.
+    if (usesTex3Dlod)
+    {
+        m_writer.WriteLine(0, "vec4 %s(sampler3D sampler, vec4 texCoord) { return textureLod(sampler, texCoord.xyz, texCoord.w);  }", m_tex3DlodFunction );
     }
 
     // Output the special function used to emulate texCUBEbias.
@@ -648,7 +677,7 @@ void GLSLGenerator::OutputIdentifier(const char* name)
     {
         name = "fract";
     }
-    else
+    else 
     {
         // The identifier could be a GLSL reserved word (if it's not also a HLSL reserved word).
         name = GetSafeIdentifierName(name);
@@ -728,14 +757,14 @@ void GLSLGenerator::OutputStatements(int indent, HLSLStatement* statement, const
             if (buffer->field != NULL)
             {
                 m_writer.WriteLine(indent, buffer->fileName, buffer->line, "layout (std140) uniform %s {", buffer->name);
-                HLSLBufferField* field = buffer->field;
+                HLSLDeclaration* field = buffer->field;
                 while (field != NULL)
                 {
                     m_writer.BeginLine(indent + 1, field->fileName, field->line);
                     OutputDeclaration(field->type, field->name);
                     m_writer.Write(";");
                     m_writer.EndLine();
-                    field = field->nextField;
+                    field = (HLSLDeclaration*)field->nextStatement;
                 }
                 m_writer.WriteLine(indent, "};");
             }
@@ -1103,13 +1132,10 @@ void GLSLGenerator::Error(const char* format, ...)
     }
     m_error = true;
 
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    int result = vsnprintf(buffer, sizeof(buffer) - 1, format, args);
-    va_end(args);
-
-    Log_Error("%s", buffer);
+    va_list arg;
+    va_start(arg, format);
+    Log_ErrorArgList(format, arg);
+    va_end(arg);
 } 
 
 const char* GLSLGenerator::GetSafeIdentifierName(const char* name) const

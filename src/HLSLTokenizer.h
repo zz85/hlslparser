@@ -31,8 +31,12 @@ enum HLSLToken
     HLSLToken_Uint3,
     HLSLToken_Uint4,
     HLSLToken_Texture,
+    HLSLToken_Sampler,
     HLSLToken_Sampler2D,
+    HLSLToken_Sampler3D,
     HLSLToken_SamplerCube,
+    HLSLToken_Sampler2DShadow,
+    HLSLToken_Sampler2DMS,
 
     // Reserved words.
     HLSLToken_If,
@@ -51,12 +55,19 @@ enum HLSLToken
     HLSLToken_Continue,
     HLSLToken_Discard,
     HLSLToken_Const,
-    HLSLToken_PackOffset,
+    HLSLToken_Static,
+    HLSLToken_Inline,
 
     // Input modifiers.
     HLSLToken_Uniform,
     HLSLToken_In,
+    HLSLToken_Out,
     HLSLToken_InOut,
+
+    // Effect keywords.
+    HLSLToken_SamplerState,
+    HLSLToken_Technique,
+    HLSLToken_Pass,
 
     // Multi-character symbols.
     HLSLToken_LessEqual,

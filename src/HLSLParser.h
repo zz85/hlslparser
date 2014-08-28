@@ -10,14 +10,17 @@
 #ifndef HLSL_PARSER_H
 #define HLSL_PARSER_H
 
-#include "Engine/StringPool.h"
-#include "Engine/Array.h"
+//#include "Engine/StringPool.h"
+//#include "Engine/Array.h"
+#include "Engine.h"
 
 #include "HLSLTokenizer.h"
 #include "HLSLTree.h"
 
 namespace M4
 {
+
+struct EffectState;
 
 class HLSLParser
 {
@@ -39,16 +42,19 @@ private:
      * only tokens in specific contexts (like in/inout in parameter lists).
      */
     bool Accept(const char* token);
+    bool Expect(const char* token);
 
     bool AcceptIdentifier(const char*& identifier);
     bool ExpectIdentifier(const char*& identifier);
     bool AcceptFloat(float& value);
     bool AcceptInt(int& value);
-    bool AcceptType(bool allowVoid, HLSLBaseType& type, const char*& typeName, bool* constant);
-    bool ExpectType(bool allowVoid, HLSLBaseType& type, const char*& typeName, bool* constant);
+    bool AcceptType(bool allowVoid, HLSLBaseType& type, const char*& typeName, int* typeFlags);
+    bool ExpectType(bool allowVoid, HLSLBaseType& type, const char*& typeName, int* typeFlags);
     bool AcceptBinaryOperator(int priority, HLSLBinaryOp& binaryOp);
     bool AcceptUnaryOperator(bool pre, HLSLUnaryOp& unaryOp);
     bool AcceptAssign(HLSLBinaryOp& binaryOp);
+    bool AcceptTypeModifier(int & typeFlags);
+    bool AcceptInterpolationModifier(int& flags);
 
     /**
      * Handles a declaration like: "float2 name[5]". If allowUnsizedArray is true, it is
@@ -63,14 +69,26 @@ private:
     bool ParseStatement(HLSLStatement*& statement, const HLSLType& returnType);
     bool ParseDeclaration(HLSLDeclaration*& declaration);
     bool ParseFieldDeclaration(HLSLStructField*& field);
-    bool ParseBufferFieldDeclaration(HLSLBufferField*& field);
+    //bool ParseBufferFieldDeclaration(HLSLBufferField*& field);
     bool ParseExpression(HLSLExpression*& expression);
     bool ParseBinaryExpression(int priority, HLSLExpression*& expression);
     bool ParseTerminalExpression(HLSLExpression*& expression, bool& needsEndParen);
     bool ParseExpressionList(int endToken, bool allowEmptyEnd, HLSLExpression*& firstExpression, int& numExpressions);
-    bool ParseArgumentList(int endToken, HLSLArgument*& firstArgument, int& numArguments);
+    bool ParseArgumentList(HLSLArgument*& firstArgument, int& numArguments);
     bool ParseDeclarationAssignment(HLSLDeclaration* declaration);
     bool ParsePartialConstructor(HLSLExpression*& expression, HLSLBaseType type, const char* typeName);
+
+    bool ParseStateName(bool isSamplerState, bool isPipelineState, const char*& name, const EffectState *& state);
+    bool ParseColorMask(int& mask);
+    bool ParseStateValue(const EffectState * state, HLSLStateAssignment* stateAssignment);
+    bool ParseStateAssignment(HLSLStateAssignment*& stateAssignment, bool isSamplerState, bool isPipelineState);
+    bool ParseSamplerState(HLSLExpression*& expression);
+    bool ParseTechnique(HLSLStatement*& statement);
+    bool ParsePass(HLSLPass*& pass);
+    bool ParsePipeline(HLSLStatement*& pipeline);
+
+    bool ParseAttributeList(HLSLAttribute*& attribute);
+    bool ParseAttributeBlock(HLSLAttribute*& attribute);
 
     bool CheckForUnexpectedEndOfStream(int endToken);
 

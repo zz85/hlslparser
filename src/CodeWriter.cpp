@@ -7,8 +7,9 @@
 //
 //=============================================================================
 
-#include "Engine/Assert.h"
-#include "Engine/String.h"
+//#include "Engine/Assert.h"
+//#include "Engine/String.h"
+#include "Engine.h"
 
 #include "CodeWriter.h"
 
@@ -25,16 +26,14 @@ CodeWriter::CodeWriter(Allocator* allocator) :
     m_currentLine       = 1;
     m_currentFileName   = NULL;
     m_spacesPerIndent   = 4;
-    m_writeLines        = false;
-    m_writeFileNames    = false;
+    m_writeLines        = true;
+    m_writeFileNames    = true;
 }
 
 void CodeWriter::BeginLine(int indent, const char* fileName, int lineNumber)
 {
-
     if (m_writeLines)
     {
-
         bool outputLine = false;
         bool outputFile = false;
 
@@ -66,7 +65,6 @@ void CodeWriter::BeginLine(int indent, const char* fileName, int lineNumber)
                 m_buffer += "\n";
             }
         }
-
     }
 
     // Handle the indentation.
@@ -92,7 +90,7 @@ void CodeWriter::Write(const char* format, ...)
     va_start(args, format);
 
     char buffer[_maxLineLength];
-    String_Printf(buffer, sizeof(buffer), format, args);
+    String_PrintfArgList(buffer, sizeof(buffer), format, args);
 
     m_buffer += buffer;
 
@@ -106,7 +104,7 @@ void CodeWriter::WriteLine(int indent, const char* format, ...)
 
     char buffer[_maxLineLength];
 
-    int result = String_Printf(buffer, sizeof(buffer), format, args);
+    int result = String_PrintfArgList(buffer, sizeof(buffer), format, args);
     ASSERT(result != -1);
 
     for (int i = 0; i < indent * m_spacesPerIndent; ++i)
@@ -128,7 +126,7 @@ void CodeWriter::WriteLine(int indent, const char* fileName, int lineNumber, con
     BeginLine(indent, fileName, lineNumber);
 
     char buffer[_maxLineLength];
-    int result = String_Printf(buffer, sizeof(buffer), format, args);
+    int result = String_PrintfArgList(buffer, sizeof(buffer), format, args);
     ASSERT(result != -1);
 
     m_buffer += buffer;
@@ -141,6 +139,11 @@ void CodeWriter::WriteLine(int indent, const char* fileName, int lineNumber, con
 const char* CodeWriter::GetResult() const
 {
     return m_buffer.c_str();
+}
+
+void CodeWriter::Reset()
+{
+    m_buffer.clear();
 }
 
 }

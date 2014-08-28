@@ -1,5 +1,6 @@
-#include "Engine/Log.h"
-#include "Engine/String.h"
+//#include "Engine/Log.h"
+//#include "Engine/String.h"
+#include "Engine.h"
 
 #include "HLSLTokenizer.h"
 
@@ -37,8 +38,12 @@ static const char* _reservedWords[] =
         "uint3",
         "uint4",
         "texture",
+        "sampler",
         "sampler2D",
+        "sampler3D",
         "samplerCUBE",
+        "sampler2DShadow",
+        "sampler2DMS",
         "if",
         "else",
         "for",
@@ -55,10 +60,15 @@ static const char* _reservedWords[] =
         "continue",
         "discard",
         "const",
-        "packoffset",
+        "static",
+        "inline",
         "uniform",
         "in",
+        "out",
         "inout",
+        "sampler_state",
+        "technique",
+        "pass",
     };
 
 static bool GetIsSymbol(char c)
@@ -78,6 +88,7 @@ static bool GetIsSymbol(char c)
     case '=':
     case '.':
     case '<': case '>':
+    case '|': case '&': case '^': case '~':
         return true;
     }
     return false;
@@ -115,7 +126,7 @@ void HLSLTokenizer::Next()
 
     m_tokenLineNumber = m_lineNumber;
 
-    if (m_buffer >= m_bufferEnd)
+    if (m_buffer >= m_bufferEnd || *m_buffer == '\0')
     {
         m_token = HLSLToken_EndOfStream;
         return;
@@ -298,6 +309,20 @@ bool HLSLTokenizer::ScanNumber()
     if (m_buffer[0] == '+' || m_buffer[0] == '-')
     {
         return false;
+    }
+
+    // Parse hex literals.
+    if (m_bufferEnd - m_buffer > 2 && m_buffer[0] == '0' && m_buffer[1] == 'x')
+    {
+        char*   hEnd = NULL;
+        int     iValue = strtol(m_buffer+2, &hEnd, 16);
+        if (GetIsNumberSeparator(hEnd[0]))
+        {
+            m_buffer = hEnd;
+            m_token  = HLSLToken_IntLiteral;
+            m_iValue = iValue;
+            return true;
+        }
     }
 
     char* fEnd = NULL;

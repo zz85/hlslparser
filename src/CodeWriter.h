@@ -36,6 +36,7 @@ public:
     void WriteLine(int indent, const char* fileName, int lineNumber, const char* format, ...);
 
     const char* GetResult() const;
+    void Reset();
 
 private:
 
