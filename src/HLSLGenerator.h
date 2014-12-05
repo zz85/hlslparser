@@ -80,14 +80,18 @@ private:
     char            m_tex2DBiasFunction[64];
     char            m_tex2DGradFunction[64];
     char            m_tex2DGatherFunction[64];
+    char            m_tex2DSizeFunction[64];
     char            m_tex2DCmpFunction[64];
     char            m_tex2DMSFetchFunction[64];
+    char            m_tex2DMSSizeFunction[64];
     char            m_tex3DFunction[64];
     char            m_tex3DLodFunction[64];
     char            m_tex3DBiasFunction[64];
+    char            m_tex3DSizeFunction[64];
     char            m_texCubeFunction[64];
     char            m_texCubeLodFunction[64];
     char            m_texCubeBiasFunction[64];
+    char            m_texCubeSizeFunction[64];
 };
 
 } // M4

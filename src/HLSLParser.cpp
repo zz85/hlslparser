@@ -526,21 +526,22 @@ const Intrinsic _intrinsic[] =
         Intrinsic("tex2Dgrad", HLSLBaseType_Float4, HLSLBaseType_Sampler2D, HLSLBaseType_Float2, HLSLBaseType_Float2, HLSLBaseType_Float2),
         Intrinsic("tex2Dgather", HLSLBaseType_Float4, HLSLBaseType_Sampler2D, HLSLBaseType_Float2, HLSLBaseType_Int),
         Intrinsic("tex2Dgather", HLSLBaseType_Float4, HLSLBaseType_Sampler2D, HLSLBaseType_Float2, HLSLBaseType_Int2, HLSLBaseType_Int),    // With offset.
-        //Intrinsic("tex2Dsize", HLSLBaseType_Int2, HLSLBaseType_Sampler2D, HLSLBaseType_Int),
+        Intrinsic("tex2Dsize", HLSLBaseType_Int2, HLSLBaseType_Sampler2D),
 
         Intrinsic("tex2Dcmp", HLSLBaseType_Float4, HLSLBaseType_Sampler2DShadow, HLSLBaseType_Float4),                // @@ IC: This really takes a float3 (uvz) and returns a float.
 
         Intrinsic("tex2DMSfetch", HLSLBaseType_Float4, HLSLBaseType_Sampler2DMS, HLSLBaseType_Int2, HLSLBaseType_Int),
-        //Intrinsic("tex2DMSsize", HLSLBaseType_Int3, HLSLBaseType_Sampler2DMS),
+        Intrinsic("tex2DMSsize", HLSLBaseType_Int3, HLSLBaseType_Sampler2DMS),
 
         Intrinsic("tex3D",     HLSLBaseType_Float4, HLSLBaseType_Sampler3D, HLSLBaseType_Float3),
         Intrinsic("tex3Dlod",  HLSLBaseType_Float4, HLSLBaseType_Sampler3D, HLSLBaseType_Float4),
         Intrinsic("tex3Dbias", HLSLBaseType_Float4, HLSLBaseType_Sampler3D, HLSLBaseType_Float4),
-        //Intrinsic("tex3Dsize", HLSLBaseType_Int3, HLSLBaseType_Sampler3D),
+        Intrinsic("tex3Dsize", HLSLBaseType_Int3, HLSLBaseType_Sampler3D),
 
         Intrinsic("texCUBE",       HLSLBaseType_Float4, HLSLBaseType_SamplerCube, HLSLBaseType_Float3),
         Intrinsic("texCUBElod", HLSLBaseType_Float4, HLSLBaseType_SamplerCube, HLSLBaseType_Float4),
         Intrinsic("texCUBEbias", HLSLBaseType_Float4, HLSLBaseType_SamplerCube, HLSLBaseType_Float4),
+        Intrinsic("texCUBEsize", HLSLBaseType_Int, HLSLBaseType_SamplerCube),
 
         Intrinsic( "sincos", HLSLBaseType_Void,  HLSLBaseType_Float,   HLSLBaseType_Float,  HLSLBaseType_Float ),
         Intrinsic( "sincos", HLSLBaseType_Void,  HLSLBaseType_Float2,  HLSLBaseType_Float,  HLSLBaseType_Float2 ),
@@ -1040,6 +1041,7 @@ HLSLParser::HLSLParser(Allocator* allocator, const char* fileName, const char* b
     m_functions(allocator)
 {
     m_numGlobals = 0;
+    m_tree = NULL;
 }
 
 bool HLSLParser::Accept(int token)
@@ -1352,6 +1354,9 @@ bool HLSLParser::ParseTopLevel(HLSLStatement*& statement)
     else if (ParsePipeline(statement)) {
         doesNotExpectSemicolon = true;
     }
+    else if (ParseStage(statement)) {
+        doesNotExpectSemicolon = true;
+    }
 
     if (statement != NULL) {
         statement->attributes = attributes;
@@ -1558,12 +1563,13 @@ bool HLSLParser::ParseStatement(HLSLStatement*& statement, const HLSLType& retur
 
 
 // IC: This is only used in block statements, or within control flow statements. So, it doesn't support semantics or layout modifiers.
+// @@ We should add suport for semantics for inline input/output declarations.
 bool HLSLParser::ParseDeclaration(HLSLDeclaration*& declaration)
 {
     const char* fileName    = GetFileName();
     int         line        = GetLineNumber();
 
-    HLSLType    type;
+    HLSLType type;
     if (!AcceptType(/*allowVoid=*/false, type.baseType, type.typeName, &type.flags))
     {
         return false;
@@ -1707,16 +1713,17 @@ bool HLSLParser::ParseExpression(HLSLExpression*& expression)
     {
         return false;
     }
+
     HLSLBinaryOp assignOp;
-    while (AcceptAssign(assignOp))
+    if (AcceptAssign(assignOp))
     {
         HLSLExpression* expression2 = NULL;
-        if (!ParseBinaryExpression(0, expression2))
+        if (!ParseExpression(expression2))
         {
             return false;
         }
         HLSLBinaryExpression* binaryExpression = m_tree->AddNode<HLSLBinaryExpression>(expression->fileName, expression->line);
-        binaryExpression->binaryOp    = assignOp;
+        binaryExpression->binaryOp = assignOp;
         binaryExpression->expression1 = expression;
         binaryExpression->expression2 = expression2;
         // This type is not strictly correct, since the type should be a reference.
@@ -1733,6 +1740,7 @@ bool HLSLParser::ParseExpression(HLSLExpression*& expression)
 
         expression = binaryExpression;
     }
+
     return true;
 }
 
@@ -2470,7 +2478,7 @@ bool HLSLParser::ParsePipeline(HLSLStatement*& statement)
         return false;
     }
 
-    // Optional pass name.
+    // Optional pipeline name.
     const char* pipelineName = NULL;
     AcceptIdentifier(pipelineName);
 
@@ -2796,6 +2804,44 @@ bool HLSLParser::ParseAttributeBlock(HLSLAttribute*& attribute)
     return true;
 }
 
+bool HLSLParser::ParseStage(HLSLStatement*& statement)
+{
+    if (!Accept("stage"))
+    {
+        return false;
+    }
+
+    // Required stage name.
+    const char* stageName = NULL;
+    if (!ExpectIdentifier(stageName))
+    {
+        return false;
+    }
+
+    if (!Expect('{'))
+    {
+        return false;
+    }
+
+    HLSLStage* stage = m_tree->AddNode<HLSLStage>(GetFileName(), GetLineNumber());
+    stage->name = stageName;
+
+    BeginScope();
+
+    HLSLType voidType(HLSLBaseType_Void);
+    if (!Expect('{') || !ParseBlock(stage->statement, voidType))
+    {
+        return false;
+    }
+
+    EndScope();
+
+    // @@ To finish the stage definition we should traverse the statements recursively (including function calls) and find all the input/output declarations.
+
+    statement = stage;
+    return true;
+}
+
 
 
 
@@ -2852,6 +2898,16 @@ bool HLSLParser::AcceptTypeModifier(int& flags)
         //flags |= HLSLTypeFlag_Uniform;      // @@ Ignored. In HLSL all functions are inline.
         return true;
     }
+    /*else if (Accept("in"))
+    {
+        flags |= HLSLTypeFlag_Input;
+        return true;
+    }
+    else if (Accept("out"))
+    {
+        flags |= HLSLTypeFlag_Output;
+        return true;
+    }*/
 
     // Not an usage keyword.
     return false;

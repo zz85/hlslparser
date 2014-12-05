@@ -44,6 +44,7 @@ enum HLSLNodeType
     HLSLNodeType_Technique,
     HLSLNodeType_Attribute,
     HLSLNodeType_Pipeline,
+    HLSLNodeType_Stage,
 };
 
 enum HLSLBaseType
@@ -153,6 +154,9 @@ enum HLSLTypeFlags
     //HLSLTypeFlag_Volatile = 0x20,
     //HLSLTypeFlag_Shared = 0x40,
     //HLSLTypeFlag_Precise = 0x80,
+
+    HLSLTypeFlag_Input = 0x100,
+    HLSLTypeFlag_Output = 0x200,
 
     // Interpolation modifiers.
     HLSLTypeFlag_Linear = 0x10000,
@@ -675,6 +679,22 @@ struct HLSLPipeline : public HLSLStatement
     HLSLStateAssignment*    stateAssignments;
 };
 
+struct HLSLStage : public HLSLStatement
+{
+    static const HLSLNodeType s_type = HLSLNodeType_Stage;
+    HLSLStage()
+    {
+        name = NULL;
+        statement = NULL;
+        inputs = NULL;
+        outputs = NULL;
+    }
+
+    const char*             name;
+    HLSLStatement*          statement;
+    HLSLDeclaration*        inputs;
+    HLSLDeclaration*        outputs;
+};
 
 
 /**

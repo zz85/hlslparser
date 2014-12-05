@@ -972,21 +972,29 @@ void SortTree(HLSLTree * tree)
     HLSLStatement * firstStatement = structs;
     HLSLStatement * lastStatement = lastStruct;
 
-    if (firstStatement == NULL) firstStatement = constDeclarations;
-    else lastStatement->nextStatement = constDeclarations;
-    lastStatement = lastConstDeclaration;
+    if (constDeclarations != NULL) {
+        if (firstStatement == NULL) firstStatement = constDeclarations;
+        else lastStatement->nextStatement = constDeclarations;
+        lastStatement = lastConstDeclaration;
+    }
 
-    if (firstStatement == NULL) firstStatement = declarations;
-    else lastStatement->nextStatement = declarations;
-    lastStatement = lastDeclaration;
+    if (declarations != NULL) {
+        if (firstStatement == NULL) firstStatement = declarations;
+        else lastStatement->nextStatement = declarations;
+        lastStatement = lastDeclaration;
+    }
 
-    if (firstStatement == NULL) firstStatement = functions;
-    else lastStatement->nextStatement = functions;
-    lastStatement = lastFunction;
+    if (functions != NULL) {
+        if (firstStatement == NULL) firstStatement = functions;
+        else lastStatement->nextStatement = functions;
+        lastStatement = lastFunction;
+    }
 
-    if (firstStatement == NULL) firstStatement = other;
-    else lastStatement->nextStatement = other;
-    lastStatement = lastOther;
+    if (other != NULL) {
+        if (firstStatement == NULL) firstStatement = other;
+        else lastStatement->nextStatement = other;
+        lastStatement = lastOther;
+    }
 
     root->statement = firstStatement;
 }
@@ -1024,6 +1032,8 @@ void GroupParameters(HLSLTree * tree)
 
     HLSLDeclaration * firstPerItemDeclaration = NULL;
     HLSLDeclaration * lastPerItemDeclaration = NULL;
+
+    HLSLDeclaration * instanceDataDeclaration = NULL;
 
     HLSLDeclaration * firstPerPassDeclaration = NULL;
     HLSLDeclaration * lastPerPassDeclaration = NULL;
@@ -1067,46 +1077,54 @@ void GroupParameters(HLSLTree * tree)
                 {
                     HLSLDeclaration* nextDeclaration = declaration->nextDeclaration;
 
-                    // Select group based on type and semantic.
-                    HLSLDeclaration ** first, ** last;
-                    if (declaration->semantic == NULL || String_EqualNoCase(declaration->semantic, "PER_ITEM") || String_EqualNoCase(declaration->semantic, "PER_MATERIAL"))
+                    if (declaration->semantic != NULL && String_EqualNoCase(declaration->semantic, "PER_INSTANCED_ITEM"))
                     {
-                        if (IsSamplerType(declaration->type))
-                        {
-                            first = &firstPerItemSampler;
-                            last = &lastPerItemSampler;
-                        }
-                        else 
-                        {
-                            first = &firstPerItemDeclaration;
-                            last = &lastPerItemDeclaration;
-                        }
+                        ASSERT(instanceDataDeclaration == NULL);
+                        instanceDataDeclaration = declaration;
                     }
-                    else 
+                    else
                     {
-                        if (IsSamplerType(declaration->type))
+                        // Select group based on type and semantic.
+                        HLSLDeclaration ** first, ** last;
+                        if (declaration->semantic == NULL || String_EqualNoCase(declaration->semantic, "PER_ITEM") || String_EqualNoCase(declaration->semantic, "PER_MATERIAL"))
                         {
-                            first = &firstPerPassSampler;
-                            last = &lastPerPassSampler;
+                            if (IsSamplerType(declaration->type))
+                            {
+                                first = &firstPerItemSampler;
+                                last = &lastPerItemSampler;
+                            }
+                            else
+                            {
+                                first = &firstPerItemDeclaration;
+                                last = &lastPerItemDeclaration;
+                            }
                         }
-                        else 
+                        else
                         {
-                            first = &firstPerPassDeclaration;
-                            last = &lastPerPassDeclaration;
+                            if (IsSamplerType(declaration->type))
+                            {
+                                first = &firstPerPassSampler;
+                                last = &lastPerPassSampler;
+                            }
+                            else
+                            {
+                                first = &firstPerPassDeclaration;
+                                last = &lastPerPassDeclaration;
+                            }
                         }
-                    }
 
-                    // Add declaration to new list.
-                    if (*first == NULL) *first = declaration;
-                    else (*last)->nextStatement = declaration;
-                    *last = declaration;
+                        // Add declaration to new list.
+                        if (*first == NULL) *first = declaration;
+                        else (*last)->nextStatement = declaration;
+                        *last = declaration;
+                    }
 
                     // Unlink from declaration list.
                     declaration->nextDeclaration = NULL;
 
                     // Reset attributes.
                     declaration->registerName = NULL;
-                    declaration->semantic = NULL;
+                    //declaration->semantic = NULL;         // @@ Don't do this!
 
                     declaration = nextDeclaration;
                 }
@@ -1124,6 +1142,14 @@ void GroupParameters(HLSLTree * tree)
             previousStatement = statement;
         }
         statement = nextStatement;
+    }
+
+
+    // Add instance data declaration at the end of the per_item buffer.
+    if (instanceDataDeclaration != NULL)
+    {
+        if (firstPerItemDeclaration == NULL) firstPerItemDeclaration = instanceDataDeclaration;
+        else lastPerItemDeclaration->nextStatement = instanceDataDeclaration;
     }
 
 

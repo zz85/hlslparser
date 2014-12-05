@@ -92,6 +92,7 @@ HLSLGenerator::HLSLGenerator(Allocator* allocator) :
     m_tex2DBiasFunction[0]          = 0;
     m_tex2DGradFunction[0]          = 0;
     m_tex2DGatherFunction[0]        = 0;
+    m_tex2DSizeFunction[0]          = 0;
     m_tex2DCmpFunction[0]           = 0;
     m_tex2DMSFetchFunction[0]       = 0;
     m_tex3DFunction[0]              = 0;
@@ -242,14 +243,18 @@ bool HLSLGenerator::Generate(HLSLTree* tree, Target target, const char* entryNam
     ChooseUniqueName("tex2Dbias",                   m_tex2DBiasFunction,        sizeof(m_tex2DBiasFunction));
     ChooseUniqueName("tex2Dgrad",                   m_tex2DGradFunction,        sizeof(m_tex2DGradFunction));
     ChooseUniqueName("tex2Dgather",                 m_tex2DGatherFunction,      sizeof(m_tex2DGatherFunction));
+    ChooseUniqueName("tex2Dsize",                   m_tex2DSizeFunction,        sizeof(m_tex2DSizeFunction));
     ChooseUniqueName("tex2Dcmp",                    m_tex2DCmpFunction,         sizeof(m_tex2DCmpFunction));
     ChooseUniqueName("tex2DMSfetch",                m_tex2DMSFetchFunction,     sizeof(m_tex2DMSFetchFunction));
+    ChooseUniqueName("tex2DMSsize",                 m_tex2DMSSizeFunction,      sizeof(m_tex2DMSSizeFunction));
     ChooseUniqueName("tex3D",                       m_tex3DFunction,            sizeof(m_tex3DFunction));
     ChooseUniqueName("tex3Dlod",                    m_tex3DLodFunction,         sizeof(m_tex3DLodFunction));
     ChooseUniqueName("tex3Dbias",                   m_tex3DBiasFunction,        sizeof(m_tex3DBiasFunction));
+    ChooseUniqueName("tex3Dsize",                   m_tex3DSizeFunction,        sizeof(m_tex3DSizeFunction));
     ChooseUniqueName("texCUBE",                     m_texCubeFunction,          sizeof(m_texCubeFunction));
     ChooseUniqueName("texCUBElod",                  m_texCubeLodFunction,       sizeof(m_texCubeLodFunction));
     ChooseUniqueName("texCUBEbias",                 m_texCubeBiasFunction,      sizeof(m_texCubeBiasFunction));
+    ChooseUniqueName("texCUBEsize",                 m_texCubeSizeFunction,      sizeof(m_texCubeSizeFunction));
 
     if (!m_legacy)
     {
@@ -329,6 +334,21 @@ bool HLSLGenerator::Generate(HLSLTree* tree, Target target, const char* entryNam
             m_writer.WriteLine(1, "return ts.t.SampleGrad(ts.s, texCoord.xy, ddx, ddy);");
             m_writer.WriteLine(0, "}");
         }
+        if (m_tree->GetContainsString("tex2Dgather"))
+        {
+            m_writer.WriteLine(0, "float4 %s(%s ts, float2 texCoord, int component, int2 offset=0) {", m_tex2DGatherFunction, m_textureSampler2DStruct);
+            m_writer.WriteLine(1, "if(component == 0) return ts.t.GatherRed(ts.s, texCoord, offset);");
+            m_writer.WriteLine(1, "if(component == 1) return ts.t.GatherGreen(ts.s, texCoord, offset);");
+            m_writer.WriteLine(1, "if(component == 2) return ts.t.GatherBlue(ts.s, texCoord, offset);");
+            m_writer.WriteLine(1, "return ts.t.GatherAlpha(ts.s, texCoord, offset);");
+            m_writer.WriteLine(0, "}");
+        }
+        if (m_tree->GetContainsString("tex2Dsize"))
+        {
+            m_writer.WriteLine(0, "int2 %s(%s ts) {", m_tex2DSizeFunction, m_textureSampler2DStruct);
+            m_writer.WriteLine(1, "int2 size; ts.t.GetDimensions(size.x, size.y); return size;");
+            m_writer.WriteLine(0, "}");
+        }
         if (m_tree->GetContainsString("tex2Dcmp"))
         {
             m_writer.WriteLine(0, "float4 %s(%s ts, float4 texCoord) {", m_tex2DCmpFunction, m_textureSampler2DShadowStruct);
@@ -341,13 +361,10 @@ bool HLSLGenerator::Generate(HLSLTree* tree, Target target, const char* entryNam
             m_writer.WriteLine(1, "return t.Load(texCoord, sample);");
             m_writer.WriteLine(0, "}");
         }
-        if (m_tree->GetContainsString("tex2Dgather"))
+        if (m_tree->GetContainsString("tex2DMSsize"))
         {
-            m_writer.WriteLine(0, "float4 %s(%s ts, float2 texCoord, int component, int2 offset=0) {", m_tex2DGatherFunction, m_textureSampler2DStruct);
-            m_writer.WriteLine(1, "if(component == 0) return ts.t.GatherRed(ts.s, texCoord, offset);");
-            m_writer.WriteLine(1, "if(component == 1) return ts.t.GatherGreen(ts.s, texCoord, offset);");
-            m_writer.WriteLine(1, "if(component == 2) return ts.t.GatherBlue(ts.s, texCoord, offset);");
-            m_writer.WriteLine(1, "if(component == 3) return ts.t.GatherAlpha(ts.s, texCoord, offset);");
+            m_writer.WriteLine(0, "int3 %s(Texture2DMS<float4> t) {", m_tex2DMSSizeFunction);
+            m_writer.WriteLine(1, "int3 size; t.GetDimensions(size.x, size.y, size.z); return size;");   // @@ Not tested, does this return the number of samples in the third argument?
             m_writer.WriteLine(0, "}");
         }
         if (m_tree->GetContainsString("tex3D"))
@@ -368,6 +385,12 @@ bool HLSLGenerator::Generate(HLSLTree* tree, Target target, const char* entryNam
             m_writer.WriteLine(1, "return ts.t.SampleBias(ts.s, texCoord.xyz, texCoord.w);");
             m_writer.WriteLine(0, "}");
         }
+        if (m_tree->GetContainsString("tex3Dsize"))
+        {
+            m_writer.WriteLine(0, "int3 %s(%s ts) {", m_tex3DSizeFunction, m_textureSampler3DStruct);
+            m_writer.WriteLine(1, "int3 size; ts.t.GetDimensions(size.x, size.y, size.z); return size;");
+            m_writer.WriteLine(0, "}");
+        }
         if (m_tree->GetContainsString("texCUBE"))
         {
             m_writer.WriteLine(0, "float4 %s(%s ts, float3 texCoord) {", m_texCubeFunction, m_textureSamplerCubeStruct);
@@ -384,6 +407,12 @@ bool HLSLGenerator::Generate(HLSLTree* tree, Target target, const char* entryNam
         {
             m_writer.WriteLine(0, "float4 %s(%s ts, float4 texCoord) {", m_texCubeBiasFunction, m_textureSamplerCubeStruct);
             m_writer.WriteLine(1, "return ts.t.SampleBias(ts.s, texCoord.xyz, texCoord.w);");
+            m_writer.WriteLine(0, "}");
+        }
+        if (m_tree->GetContainsString("texCUBEsize"))
+        {
+            m_writer.WriteLine(0, "int %s(%s ts) {", m_texCubeSizeFunction, m_textureSamplerCubeStruct);
+            m_writer.WriteLine(1, "int size; ts.t.GetDimensions(size); return size;");   // @@ Not tested, does this return a single value?
             m_writer.WriteLine(0, "}");
         }
     }
@@ -502,7 +531,7 @@ void HLSLGenerator::OutputExpression(HLSLExpression* expression)
         case HLSLUnaryOp_Positive:      op = "+";  break;
         case HLSLUnaryOp_Not:           op = "!";  break;
         case HLSLUnaryOp_PreIncrement:  op = "++"; break;
-        case HLSLUnaryOp_PreDecrement:  op = "++"; break;
+        case HLSLUnaryOp_PreDecrement:  op = "--"; break;
         case HLSLUnaryOp_PostIncrement: op = "++"; pre = false; break;
         case HLSLUnaryOp_PostDecrement: op = "--"; pre = false; break;
         }
@@ -607,6 +636,10 @@ void HLSLGenerator::OutputExpression(HLSLExpression* expression)
             {
                 name = m_tex2DGatherFunction;
             }
+            else if (String_Equal(name, "tex2Dsize"))
+            {
+                name = m_tex2DSizeFunction;
+            }
             else if (String_Equal(name, "tex2Dcmp"))
             {
                 name = m_tex2DCmpFunction;
@@ -614,6 +647,10 @@ void HLSLGenerator::OutputExpression(HLSLExpression* expression)
             else if (String_Equal(name, "tex2DMSfetch"))
             {
                 name = m_tex2DMSFetchFunction;
+            }
+            else if (String_Equal(name, "tex2DMSsize"))
+            {
+                name = m_tex2DMSSizeFunction;
             }
             else if (String_Equal(name, "tex3D"))
             {
@@ -627,6 +664,10 @@ void HLSLGenerator::OutputExpression(HLSLExpression* expression)
             {
                 name = m_tex3DBiasFunction;
             }
+            else if (String_Equal(name, "tex3Dsize"))
+            {
+                name = m_tex3DSizeFunction;
+            }
             else if (String_Equal(name, "texCUBE"))
             {
                 name = m_texCubeFunction;
@@ -638,6 +679,10 @@ void HLSLGenerator::OutputExpression(HLSLExpression* expression)
             else if (String_Equal(name, "texCUBEbias"))
             {
                 name = m_texCubeBiasFunction;
+            }
+            else if (String_Equal(name, "texCUBEsize"))
+            {
+                name = m_texCubeSizeFunction;
             }
         }
         m_writer.Write("%s(", name);
@@ -1014,6 +1059,28 @@ void HLSLGenerator::OutputDeclarationType(const HLSLType& type)
     if (type.flags & HLSLTypeFlag_Static)
     {
         m_writer.Write("static ");
+    }
+
+    // Interpolation modifiers.
+    if (type.flags & HLSLTypeFlag_Centroid)
+    {
+        m_writer.Write("centroid ");
+    }
+    if (type.flags & HLSLTypeFlag_Linear)
+    {
+        m_writer.Write("linear ");
+    }
+    if (type.flags & HLSLTypeFlag_NoInterpolation)
+    {
+        m_writer.Write("nointerpolation ");
+    }
+    if (type.flags & HLSLTypeFlag_NoPerspective)
+    {
+        m_writer.Write("noperspective ");
+    }
+    if (type.flags & HLSLTypeFlag_Sample)   // @@ Only in shader model >= 4.1
+    {
+        m_writer.Write("sample ");
     }
 
     m_writer.Write("%s ", typeName);

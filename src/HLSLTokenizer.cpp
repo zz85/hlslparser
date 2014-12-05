@@ -517,7 +517,7 @@ void HLSLTokenizer::Error(const char* format, ...)
     int result = vsnprintf(buffer, sizeof(buffer) - 1, format, args);
     va_end(args);
 
-    Log_Error("%s(%d) : %s", m_fileName, m_lineNumber, buffer);
+    Log_Error("%s(%d) : %s\n", m_fileName, m_lineNumber, buffer);
 } 
 
 void HLSLTokenizer::GetTokenName(char buffer[s_maxIdentifier]) const

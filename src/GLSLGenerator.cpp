@@ -393,7 +393,7 @@ void GLSLGenerator::OutputExpression(HLSLExpression* expression, const HLSLType*
         case HLSLUnaryOp_Positive:      op = "+";  break;
         case HLSLUnaryOp_Not:           op = "!";  dstType = &unaryExpression->expressionType; break;
         case HLSLUnaryOp_PreIncrement:  op = "++"; break;
-        case HLSLUnaryOp_PreDecrement:  op = "++"; break;
+        case HLSLUnaryOp_PreDecrement:  op = "--"; break;
         case HLSLUnaryOp_PostIncrement: op = "++"; pre = false; break;
         case HLSLUnaryOp_PostDecrement: op = "--"; pre = false; break;
         }
