@@ -82,7 +82,7 @@ void Log_Error(const char * format, ...) {
 }
 
 void Log_ErrorArgList(const char * format, va_list args) {
-    Log::print_valist(format, args);
+    vprintf(format, args);
 }
 
 
