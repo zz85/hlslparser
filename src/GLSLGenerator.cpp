@@ -71,6 +71,10 @@ static const char* GetTypeName(const HLSLType& type)
     case HLSLBaseType_Sampler2D:    return "sampler2D";
     case HLSLBaseType_Sampler3D:    return "sampler3D";
     case HLSLBaseType_SamplerCube:  return "samplerCube";
+    case HLSLBaseType_Sampler2DShadow:  return "sampler2DShadow";
+    case HLSLBaseType_Sampler2DMS:  return "sampler2DMS";
+    case HLSLBaseType_Count:        return "count";
+    case HLSLBaseType_Unknown:  return "unknown";
     case HLSLBaseType_UserDefined:  return type.typeName;
     }
     ASSERT(0);
@@ -396,6 +400,8 @@ void GLSLGenerator::OutputExpression(HLSLExpression* expression, const HLSLType*
         case HLSLUnaryOp_PreDecrement:  op = "--"; break;
         case HLSLUnaryOp_PostIncrement: op = "++"; pre = false; break;
         case HLSLUnaryOp_PostDecrement: op = "--"; pre = false; break;
+        case HLSLUnaryOp_BitNot:        op = "~"; break;
+
         }
         m_writer.Write("(");
         if (pre)
@@ -703,6 +709,8 @@ void GLSLGenerator::OutputArguments(HLSLArgument* argument)
             break;
         case HLSLArgumentModifier_Inout:
             m_writer.Write("inout ");
+            break;
+        case HLSLArgumentModifier_None:
             break;
         }
 
