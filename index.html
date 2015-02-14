@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>HLSL 2 GLSL</title>
+    <style>
+
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 10px;
+      }
+
+      textarea {
+        width: 600px;
+        height: 400px;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 10px;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>HLSL to GLSL Converter</h1>
+    <p>
+      <div id="statusLabel"></div>
+      <div id="errorLabel"></div>
+    </p>
+    <p>
+      <select id="shaderType">
+        <option value="fs">Fragment shader</option>
+        <option value="vs">Vertex shader</option>
+      </select>
+
+      <label>Entry name: </label> <input id="entryName" value="PixelShaderFunction" />
+
+      <button onclick="convert();">Convert</button>
+    </p>
+    <p>
+    <textarea id="source">
+float4x4 World;
+float4x4 View;
+float4x4 Projection;
+
+float4 AmbientColor = float4(1, 1, 1, 1);
+float AmbientIntensity = 0.1;
+
+struct VertexShaderInput
+{
+    float4 Position : POSITION0;
+};
+
+struct VertexShaderOutput
+{
+    float4 Position : POSITION0;
+};
+
+VertexShaderOutput VertexShaderFunction(VertexShaderInput input)
+{
+    VertexShaderOutput output;
+
+    float4 worldPosition = mul(input.Position, World);
+    float4 viewPosition = mul(worldPosition, View);
+    output.Position = mul(viewPosition, Projection);
+
+    return output;
+}
+
+float4 PixelShaderFunction(VertexShaderOutput input) : COLOR0
+{
+    return AmbientColor * AmbientIntensity;
+}
+
+technique Ambient
+{
+    pass Pass1
+    {
+        VertexShader = compile vs_2_0 VertexShaderFunction();
+        PixelShader = compile ps_2_0 PixelShaderFunction();
+    }
+}
+    </textarea>
+    </p>
+    <script type='text/javascript'>
+
+    var statusLabel = document.getElementById('statusLabel');
+
+      var HLSLParser = {
+        onError: function(reason) {
+          // console.error(e);
+          statusLabel.textContent = reason;
+        },
+        onSuccess: function(code) {
+          errorLabel.textContent = statusLabel.textContent = '';
+          source.value = code;
+        },
+      }
+
+      var parseHLSL = function() {
+        alert('not loaded yet!');
+      }
+
+      function postRun() {
+        parseHLSL = Module.cwrap('parseHLSL', 'number', ['string','string','string']);
+      }
+
+      function convert() {
+        parseHLSL( source.value, entryName.value, shaderType.value);
+      }
+
+      var Module = {
+        preRun: [],
+        postRun: [ postRun ],
+        print: function(text) {
+            console.log('::print::', text);
+            errorLabel.textContent = text;
+        },
+        printErr: function(text) {
+          text = Array.prototype.slice.call(arguments).join(' ');
+          if (0) { // XXX disabled for safety typeof dump == 'function') {
+            dump(text + '\n'); // fast, straight to the real console
+          } else {
+            console.error(text);
+          }
+        },
+        setStatus: function(text) {
+          // console.log('::status::', text)
+          statusLabel.textContent = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          // console.error('monitorRunDependencies', left);
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+
+      Module.setStatus('Downloading...');
+
+      window.onerror = function(event) {
+        Module.setStatus('Exception thrown, see JavaScript console');
+        Module.setStatus = function(text) {
+          if (text) Module.printErr('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    <script async type="text/javascript" src="hlslparser.js"></script>
+
+   <style>#forkongithub a{background:#000;color:#fff;text-decoration:none;font-family:arial,sans-serif;text-align:center;font-weight:bold;padding:5px 40px;font-size:1rem;line-height:2rem;position:relative;transition:0.5s;}#forkongithub a:hover{background:#c11;color:#fff;}#forkongithub a::before,#forkongithub a::after{content:"";width:100%;display:block;position:absolute;top:1px;left:0;height:1px;background:#fff;}#forkongithub a::after{bottom:1px;top:auto;}@media screen and (min-width:800px){#forkongithub{position:absolute;display:block;top:0;right:0;width:200px;overflow:hidden;height:200px;z-index:9999;}#forkongithub a{width:200px;position:absolute;top:60px;right:-60px;transform:rotate(45deg);-webkit-transform:rotate(45deg);-ms-transform:rotate(45deg);-moz-transform:rotate(45deg);-o-transform:rotate(45deg);box-shadow:4px 4px 10px rgba(0,0,0,0.8);}}</style><span id="forkongithub"><a href="https://github.com/zz85/hlslparser/tree/gh-pages">Fork me on GitHub</a></span>
+  </body>
+</html>
