@@ -2,11 +2,15 @@
 
 Here lies a [emscripten](http://kripken.github.io/emscripten-site/index.html#) port of HLSLPaser. This port is basically modifications on Ignacio Castaño's (used for [The Witness](http://the-witness.net/news/2014/08/hlslparser/)) [improvements](https://github.com/Thekla/hlslparser) for Max McGuire's version of [HLSLParser](https://github.com/unknownworlds/hlslparser) (used for [Natural Selection](https://www.gamingonlinux.com/articles/natural-selection-2s-direct3d-hlsl-to-opengl-glsl-parser-open-sourced.3358)).
 
+If you like this, you may also find my port for [GLSL Optimizer](https://github.com/zz85/hlslparser) interesting.
+
 Usage
 
 ```sh
 emcc src/*.cpp -o hlslparser.js -s EXPORTED_FUNCTIONS="['_parseHLSL']" --bind -O3
 ```
+
+## [Demo](https://zz85.github.io/hlslparser) here.
 
 
 hlslparser
